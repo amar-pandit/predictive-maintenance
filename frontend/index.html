@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Aether-Engine | Singularity Maintenance Suite</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="cmd-header no-print">
+        <div class="brand">
+            <div class="brand-icon"><i class="fa-solid fa-microchip"></i></div>
+            <div class="brand-text"><h1>AETHER<span>ENGINE</span> V2</h1></div>
+        </div>
+        <div class="sys-telemetry">
+            <div style="display: flex; align-items: center; gap: 8px;"><div style="width:6px; height:6px; background:var(--primary); border-radius:50%; box-shadow: 0 0 10px var(--primary); animation: blink 2s infinite;"></div> STATUS: SECURE</div>
+            <div id="user-display">NODE_ID: AX-PR02</div>
+            <div id="clock">00:00:00</div>
+        </div>
+    </header>
+
+    <div class="app-shell">
+        <aside class="panel">
+            <div class="section-tag"><i class="fa-solid fa-gauge-high"></i> Sensor Telemetry</div>
+            <div class="widget">
+                <div class="val-row">Temperature (°C) <b><span id="v-temp">60</span></b></div>
+                <input type="range" id="temp" min="50" max="115" step="1" value="60">
+            </div>
+            <div class="widget">
+                <div class="val-row">Vibration (mm/s) <b><span id="v-vib">0.01</span></b></div>
+                <input type="range" id="vib" min="0.01" max="0.25" step="0.01" value="0.01">
+            </div>
+            <div class="widget">
+                <div class="val-row">Pressure (PSI) <b><span id="v-pres">28</span></b></div>
+                <input type="range" id="pres" min="20" max="50" step="1" value="28">
+            </div>
+            <div class="widget">
+                <div class="val-row">RPM Velocity <b><span id="v-rpm">1400</span></b></div>
+                <input type="range" id="rpm" min="1000" max="2200" step="10" value="1400">
+            </div>
+
+            <div class="section-tag">Neural Feed</div>
+            <div class="terminal" id="term-feed">> Initializing Singularity Core...<br>> Connection Established.</div>
+
+            <div class="section-tag">Prediction Confidence</div>
+            <div style="height: 120px;"><canvas id="probChart"></canvas></div>
+
+            <button class="btn-industrial" id="syncBtn" onclick="window.syncToArchive()">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Push to Archive
+            </button>
+        </aside>
+
+        <main class="viewport" id="viewport">
+            <div class="scan-laser"></div>
+            <div class="hud-overlay">
+                <div class="hud-tag">ID: SINGULAR_V12</div>
+                <div class="hud-tag">MODE: <span id="hud-mode" style="font-weight: 800; color:var(--primary);">OPTIMAL</span></div>
+                <div class="hud-tag">ROTATION: <span id="hud-rpm">1400.0</span></div>
+            </div>
+            <canvas id="three-canvas"></canvas>
+        </main>
+
+        <aside class="panel panel-right">
+            <div style="text-align: center; margin-bottom: 5px;">
+                <h2 id="health-val" style="font-family:'Outfit'; font-size:2.8rem; color:var(--primary); letter-spacing:-2px;">100%</h2>
+                <div style="font-size:0.6rem; font-family:var(--font-mono); color:#475569; letter-spacing:1px;">MACHINE HEALTH INDEX</div>
+            </div>
+
+            <div class="health-stats">
+                <div class="stat-card"><span>Thermal</span><b id="h-thermal">NOMINAL</b></div>
+                <div class="stat-card"><span>Kinetic</span><b id="h-kinetic">STABLE</b></div>
+                <div class="stat-card"><span>Pneumatic</span><b id="h-pressure">SAFE</b></div>
+            </div>
+
+            <div style="height: 220px; margin-bottom: 10px;"><canvas id="radarChart"></canvas></div>
+
+            <div class="section-tag"><i class="fa-solid fa-brain"></i> AI Diagnostics Report</div>
+            <div class="intel-report" id="ai-report">
+                Monitoring live sensor feed. Thermodynamic signatures and rotational stability are within baseline range. System operational efficiency is optimal.
+            </div>
+            
+            <button class="btn-industrial" id="aiBtn" onclick="window.executeNeuralAnalysis()" style="border-color:var(--secondary); background:rgba(112,0,255,0.05);">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Execute Diagnostics
+            </button>
+
+            <div class="section-tag" style="margin-top:10px;">Archive History</div>
+            <div class="archive-list" id="global-archive">
+                <div style="padding:10px; text-align:center; opacity:0.3; font-size:10px;">Awaiting packets...</div>
+            </div>
+        </aside>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
