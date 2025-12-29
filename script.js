@@ -4,7 +4,7 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/1
 
 /* ================== BACKEND API ================== */
 /* 🔴 IMPORTANT: Put your REAL Render backend URL here */
-const API_URL = "https://predictive-maintenance-api.onrender.com";
+const API_URL = "https://predictive-maintenance-api-v2.onrender.com";
 
 /* ================== FIREBASE SAFE INIT ================== */
 let firebaseConfig, appId;
