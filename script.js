@@ -1,12 +1,11 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
 /* ================== BACKEND API ================== */
-/* 🔴 IMPORTANT: Put your REAL Render backend URL here */
 const API_URL = "https://predictive-maintenance-api-v2.onrender.com";
 
 /* ================== FIREBASE SAFE INIT ================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
 let firebaseConfig, appId;
 try {
     firebaseConfig = typeof __firebase_config !== "undefined"
@@ -24,14 +23,17 @@ const auth = firebaseConfig.apiKey !== "local" ? getAuth(app) : null;
 
 /* ================== GLOBALS ================== */
 let charts = {};
-let threeCore = { scene: null, camera: null, renderer: null, turbine: null, blades: null };
+let threeCore = { scene: null, camera: null, renderer: null, blades: null };
 
-/* ================== ML-POWERED METRICS ================== */
+/* ================== ML METRICS ================== */
 async function getHealthMetrics() {
-    const temp = parseFloat(document.getElementById("temp").value);
-    const vib  = parseFloat(document.getElementById("vib").value);
-    const pres = parseFloat(document.getElementById("pres").value);
-    const rpm  = parseFloat(document.getElementById("rpm").value);
+    // ✅ SAFE number conversion (422 FIX)
+    const temp = Number(document.getElementById("temp")?.value || 0);
+    const vib  = Number(document.getElementById("vib")?.value || 0);
+    const pres = Number(document.getElementById("pres")?.value || 0);
+    const rpm  = Number(document.getElementById("rpm")?.value || 0);
+
+    console.log("Sending to backend:", temp, vib, pres, rpm);
 
     const res = await fetch(`${API_URL}/predict`, {
         method: "POST",
@@ -45,10 +47,13 @@ async function getHealthMetrics() {
     });
 
     if (!res.ok) {
+        const err = await res.text();
+        console.error("Backend error:", err);
         throw new Error("Backend not responding");
     }
 
     const data = await res.json();
+    console.log("Backend response:", data);
 
     return {
         temp,
@@ -75,7 +80,7 @@ async function syncUI() {
         const healthEl = document.getElementById("health-val");
         const modeEl = document.getElementById("hud-mode");
 
-        healthEl.innerText = m.health + "%";
+        healthEl.innerText = `${m.health}%`;
         modeEl.innerText = m.status;
 
         const color =
@@ -104,7 +109,7 @@ async function syncUI() {
 
         if (charts.radar) {
             charts.radar.data.datasets[0].data = [
-                (m.temp - 50) / 65 * 100,
+                (m.temp / 100) * 100,
                 (m.vib / 0.25) * 100,
                 (m.pres / 50) * 100,
                 (m.rpm / 2200) * 100
@@ -112,125 +117,29 @@ async function syncUI() {
             charts.radar.update();
         }
 
-        const term = document.getElementById("term-feed");
-        term.innerHTML =
-            `> TEMP:${m.temp}  VIB:${m.vib}<br>` +
-            `> RPM:${m.rpm}<br>` +
-            `> RISK:${m.failureRisk}%<br>` +
-            `> STATUS:${m.status}`;
-
     } catch (err) {
         console.error(err);
         document.getElementById("hud-mode").innerText = "BACKEND OFFLINE";
     }
 }
 
-/* ================== THREE.JS ================== */
-function initThree() {
-    const container = document.getElementById("viewport");
-    if (!container) return;
+/* ================== EVENTS ================== */
+["temp", "vib", "pres", "rpm"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", syncUI);
+});
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-        45, container.clientWidth / container.clientHeight, 0.1, 1000
-    );
+/* ================== DUMMY FUNCTIONS (HTML FIX) ================== */
+window.syncToArchive = function () {
+    console.log("Archive feature placeholder");
+};
 
-    const renderer = new THREE.WebGLRenderer({
-        canvas: document.getElementById("three-canvas"),
-        alpha: true,
-        antialias: true
-    });
-
-    renderer.setSize(container.clientWidth, container.clientHeight);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const light = new THREE.PointLight(0x00f2ff, 1.2);
-    light.position.set(5, 5, 5);
-    scene.add(light);
-
-    const group = new THREE.Group();
-
-    const hub = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.8, 2),
-        new THREE.MeshStandardMaterial({ color: 0x444444 })
-    );
-    group.add(hub);
-    threeCore.turbine = hub;
-
-    const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(1.5, 0.05, 16, 100),
-        new THREE.MeshBasicMaterial({ color: 0x00f2ff })
-    );
-    ring.rotation.x = Math.PI / 2;
-    group.add(ring);
-    threeCore.blades = ring;
-
-    scene.add(group);
-    camera.position.z = 8;
-
-    threeCore.scene = scene;
-    threeCore.camera = camera;
-    threeCore.renderer = renderer;
-
-    const animate = () => {
-        requestAnimationFrame(animate);
-        const rpm = parseFloat(document.getElementById("rpm").value || 1400);
-        group.rotation.y += rpm / 8000;
-        renderer.render(scene, camera);
-    };
-    animate();
-}
-
-/* ================== CHARTS ================== */
-function initCharts() {
-    charts.prob = new Chart(document.getElementById("probChart"), {
-        type: "doughnut",
-        data: {
-            labels: ["Safe", "Risk"],
-            datasets: [
-                { data: [100, 0], backgroundColor: ["#00f2ff", "#ef4444"] }
-            ]
-        },
-        options: { cutout: "75%", plugins: { legend: { display: false } } }
-    });
-
-    charts.radar = new Chart(document.getElementById("radarChart"), {
-        type: "radar",
-        data: {
-            labels: ["Heat", "Vib", "Pressure", "RPM"],
-            datasets: [
-                { data: [0, 0, 0, 0], borderColor: "#00f2ff" }
-            ]
-        },
-        options: { plugins: { legend: { display: false } } }
-    });
-}
+window.executeNeuralAnalysis = function () {
+    console.log("Diagnostics placeholder");
+};
 
 /* ================== INIT ================== */
 window.addEventListener("load", () => {
-    initThree();
-    initCharts();
     syncUI();
-
-    ["temp", "vib", "pres", "rpm"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener("input", syncUI);
-    });
-
     if (auth) signInAnonymously(auth);
 });
-// FIX: Missing function to prevent JS crash
-window.syncToArchive = function () {
-    console.log("Archive feature not implemented yet.");
-};
-// ================= FIX: Missing global functions =================
-
-// Prevent crash from "Push to Archive" button
-window.syncToArchive = function () {
-    console.log("Archive feature placeholder – no action yet.");
-};
-
-// Prevent crash from "Execute Diagnostics" button
-window.executeNeuralAnalysis = function () {
-    console.log("Neural diagnostics placeholder executed.");
-};
