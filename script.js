@@ -3,9 +3,8 @@ import { getFirestore, collection, addDoc } from "https://www.gstatic.com/fireba
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 /* ================== BACKEND API ================== */
-const API_URL = "http://127.0.0.1:8000"; 
-// OR Render:
-// const API_URL = "https://your-backend.onrender.com";
+/* 🔴 IMPORTANT: Put your REAL Render backend URL here */
+const API_URL = "https://predictive-maintenance-api.onrender.com";
 
 /* ================== FIREBASE SAFE INIT ================== */
 let firebaseConfig, appId;
@@ -45,10 +44,17 @@ async function getHealthMetrics() {
         })
     });
 
+    if (!res.ok) {
+        throw new Error("Backend not responding");
+    }
+
     const data = await res.json();
 
     return {
-        temp, vib, pres, rpm,
+        temp,
+        vib,
+        pres,
+        rpm,
         failureRisk: data.risk_percentage,
         health: Math.max(0, 100 - data.risk_percentage),
         status: data.status
@@ -57,58 +63,66 @@ async function getHealthMetrics() {
 
 /* ================== UI SYNC ================== */
 async function syncUI() {
-    const m = await getHealthMetrics();
+    try {
+        const m = await getHealthMetrics();
 
-    document.getElementById("v-temp").innerText = m.temp;
-    document.getElementById("v-vib").innerText = m.vib;
-    document.getElementById("v-pres").innerText = m.pres;
-    document.getElementById("v-rpm").innerText = m.rpm;
-    document.getElementById("hud-rpm").innerText = m.rpm.toFixed(0);
+        document.getElementById("v-temp").innerText = m.temp;
+        document.getElementById("v-vib").innerText = m.vib;
+        document.getElementById("v-pres").innerText = m.pres;
+        document.getElementById("v-rpm").innerText = m.rpm;
+        document.getElementById("hud-rpm").innerText = m.rpm.toFixed(0);
 
-    const healthEl = document.getElementById("health-val");
-    const modeEl = document.getElementById("hud-mode");
+        const healthEl = document.getElementById("health-val");
+        const modeEl = document.getElementById("hud-mode");
 
-    healthEl.innerText = m.health + "%";
-    modeEl.innerText = m.status;
+        healthEl.innerText = m.health + "%";
+        modeEl.innerText = m.status;
 
-    const color =
-        m.status === "CRITICAL" ? "var(--danger)" :
-        m.status === "WARNING"  ? "var(--warning)" :
-                                 "var(--primary)";
+        const color =
+            m.status === "CRITICAL" ? "var(--danger)" :
+            m.status === "WARNING"  ? "var(--warning)" :
+                                     "var(--primary)";
 
-    healthEl.style.color = color;
-    modeEl.style.color = color;
+        healthEl.style.color = color;
+        modeEl.style.color = color;
 
-    if (threeCore.blades) {
-        const c = m.status === "CRITICAL" ? 0xef4444 :
-                  m.status === "WARNING"  ? 0xfbbf24 : 0x00f2ff;
-        threeCore.blades.material.color.setHex(c);
+        if (threeCore.blades) {
+            const c =
+                m.status === "CRITICAL" ? 0xef4444 :
+                m.status === "WARNING"  ? 0xfbbf24 :
+                                          0x00f2ff;
+            threeCore.blades.material.color.setHex(c);
+        }
+
+        if (charts.prob) {
+            charts.prob.data.datasets[0].data = [
+                100 - m.failureRisk,
+                m.failureRisk
+            ];
+            charts.prob.update();
+        }
+
+        if (charts.radar) {
+            charts.radar.data.datasets[0].data = [
+                (m.temp - 50) / 65 * 100,
+                (m.vib / 0.25) * 100,
+                (m.pres / 50) * 100,
+                (m.rpm / 2200) * 100
+            ];
+            charts.radar.update();
+        }
+
+        const term = document.getElementById("term-feed");
+        term.innerHTML =
+            `> TEMP:${m.temp}  VIB:${m.vib}<br>` +
+            `> RPM:${m.rpm}<br>` +
+            `> RISK:${m.failureRisk}%<br>` +
+            `> STATUS:${m.status}`;
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("hud-mode").innerText = "BACKEND OFFLINE";
     }
-
-    if (charts.prob) {
-        charts.prob.data.datasets[0].data = [
-            100 - m.failureRisk,
-            m.failureRisk
-        ];
-        charts.prob.update();
-    }
-
-    if (charts.radar) {
-        charts.radar.data.datasets[0].data = [
-            (m.temp - 50) / 65 * 100,
-            (m.vib / 0.25) * 100,
-            (m.pres / 50) * 100,
-            (m.rpm / 2200) * 100
-        ];
-        charts.radar.update();
-    }
-
-    const term = document.getElementById("term-feed");
-    term.innerHTML =
-        `> TEMP:${m.temp}  VIB:${m.vib}<br>` +
-        `> RPM:${m.rpm}<br>` +
-        `> RISK:${m.failureRisk}%<br>` +
-        `> STATUS:${m.status}`;
 }
 
 /* ================== THREE.JS ================== */
@@ -173,7 +187,9 @@ function initCharts() {
         type: "doughnut",
         data: {
             labels: ["Safe", "Risk"],
-            datasets: [{ data: [100, 0], backgroundColor: ["#00f2ff", "#ef4444"] }]
+            datasets: [
+                { data: [100, 0], backgroundColor: ["#00f2ff", "#ef4444"] }
+            ]
         },
         options: { cutout: "75%", plugins: { legend: { display: false } } }
     });
@@ -182,7 +198,9 @@ function initCharts() {
         type: "radar",
         data: {
             labels: ["Heat", "Vib", "Pressure", "RPM"],
-            datasets: [{ data: [0, 0, 0, 0], borderColor: "#00f2ff" }]
+            datasets: [
+                { data: [0, 0, 0, 0], borderColor: "#00f2ff" }
+            ]
         },
         options: { plugins: { legend: { display: false } } }
     });
@@ -194,9 +212,10 @@ window.addEventListener("load", () => {
     initCharts();
     syncUI();
 
-    ["temp", "vib", "pres", "rpm"].forEach(id =>
-        document.getElementById(id).addEventListener("input", syncUI)
-    );
+    ["temp", "vib", "pres", "rpm"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", syncUI);
+    });
 
     if (auth) signInAnonymously(auth);
 });
