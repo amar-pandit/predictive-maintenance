@@ -219,3 +219,18 @@ window.addEventListener("load", () => {
 
     if (auth) signInAnonymously(auth);
 });
+// FIX: Missing function to prevent JS crash
+window.syncToArchive = function () {
+    console.log("Archive feature not implemented yet.");
+};
+// ================= FIX: Missing global functions =================
+
+// Prevent crash from "Push to Archive" button
+window.syncToArchive = function () {
+    console.log("Archive feature placeholder – no action yet.");
+};
+
+// Prevent crash from "Execute Diagnostics" button
+window.executeNeuralAnalysis = function () {
+    console.log("Neural diagnostics placeholder executed.");
+};
